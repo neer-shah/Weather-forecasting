@@ -20,7 +20,7 @@ def health():
 
 # get long and lat. asynchronous function not to block users
 async def geocode_location(query: str) -> dict:
-    url = "https://geocoding-api.open-metro.com/v1/search"
+    geo_url = "https://geocoding-api.open-meteo.com/v1/search"
     params = {
         "name": query,
         "count": 1,
@@ -28,8 +28,9 @@ async def geocode_location(query: str) -> dict:
         "format": "json"
     }
     
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(url, params=params)
+    limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+    async with httpx.AsyncClient(timeout=10, limits=limits, http2=False) as client:
+        r = await client.get(geo_url, params=params)
         r.raise_for_status()
         data = r.json()
     
@@ -41,24 +42,25 @@ async def geocode_location(query: str) -> dict:
     return {
         "name": f"{top.get('name')}, {top.get('country_code')}",
         "lat": top["latitude"],
-        "long": top["longitude"],
+        "lon": top["longitude"],
         "timezone": top.get("timezone", "auto")
     }
     
 # get weather forecast data based on the location (long and lat)
-async def fetch_forecast(lat: float, long: float, tz: str) -> dict:
-    url = "https://api.open-metro.com/v1/forecast"
+async def fetch_forecast(lat: float, lon: float, tz: str) -> dict:
+    forecast_url = "https://api.open-meteo.com/v1/forecast"
     params = {
         "latitude": lat,
-        "longitude": long,
+        "longitude": lon,
         "timezone": "auto" if tz == "auto" else tz,
         "current_weather": "true",
         "hourly": "temperature_2m,precipitation_probability",
         "daily": "temperature_2m_min,temperature_2m_max,precipitation_probability_max",
     }
     
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(url, params=params)
+    limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+    async with httpx.AsyncClient(timeout=10, limits=limits, http2=False) as client:
+        r = await client.get(forecast_url, params=params)
         r.raise_for_status()
         return r.json()
 
@@ -68,11 +70,11 @@ async def weather(query: str = Query(..., min_length=2, description="City or pos
     now = datetime.now(timezone.utc)
     
     loc = await geocode_location(query)
-    raw = await fetch_forecast(loc['lat', loc['long'], loc['timezone']])
-    
+    raw = await fetch_forecast(loc["lat"], loc["lon"], loc["timezone"])
+
     current_weather = raw.get("current_weather") or {}
-    current_temp = raw.get("temperature")
-    current_wind = raw.get("windspeed")
+    current_temp = current_weather.get("temperature")
+    current_wind = current_weather.get("windspeed")
     
     feels_like = current_temp
     
@@ -112,10 +114,10 @@ async def weather(query: str = Query(..., min_length=2, description="City or pos
 
     return {
         "location": {
-            "name": loc["name"],
-            "lat": loc["lat"],
-            "lon": loc["lon"],
-            "timezone": raw.get("timezone", loc["timezone"]),
+        "name": loc["name"],
+        "lat": loc["lat"],
+        "lon": loc["lon"],
+        "timezone": raw.get("timezone", loc["timezone"]),
         },
         "current": {
             "temp_c": current_temp,
