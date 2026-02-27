@@ -134,3 +134,10 @@ async def weather(query: str = Query(..., min_length=2, description="City or pos
             "fetched_at": now.isoformat(),
         },
     }
+    
+content = """# Weather Forecaster
+Full-stack weather app built with FastAPI and Next.js.
+"""
+
+with open("README.md", "w") as f:
+    f.write(content)
