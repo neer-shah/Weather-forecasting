@@ -8,10 +8,5 @@ Full-stack weather forecasting application built with FastAPI and Next.js.
 - React
 - TypeScript
 
-## Run Backend
-cd backend
-uvicorn main:app --reload
-
-## Run Frontend
-cd frontend
-npm run dev
+## Automated Run
+Within root: .\start.ps1
